@@ -130,7 +130,7 @@ if (length(id_cols) && length(cat_cols)) {
   }, logical(1))]
 }
 
-# Composite labels such as "CAM 0.5%" or "1:2_12%" that encode two crossed factors
+# Composite labels such as "Drug 5 mg" or "1:2_12%" that encode two crossed factors
 composite <- NULL
 for (g in cat_cols) {
   lv <- unique(as.character(d[[g]]))
@@ -257,17 +257,16 @@ if (!length(suggest) && !wide) {
       add("Paired / repeated-measures plot (lines join each subject)", "an ID column links observations across conditions", "recipes.md#paired-data")
       ask <- c(ask, sprintf("Is '%s' a subject/animal ID so observations are paired?", id_cols[1]))
     }
-    if (m >= 10) {
-      add(paste0("Violin + box + points", if (two) " (dodged by 2nd factor)" else ""), sprintf("raw replicates, ~%g per group", m), "recipes.md#violin-box-points")
-      add("Box + points", "alternative if the distribution shape is not of interest", "recipes.md#violin-box-points")
-    } else if (m >= 3) {
-      add(paste0("Points + mean +/- SD", if (two) " (dodged by 2nd factor)" else ""), sprintf("raw replicates but small n (~%g per group): densities are unreliable", m), "recipes.md#points-mean-error")
-      add("Violin + box + points", "only if the manuscript's other figures already use violins", "recipes.md#violin-box-points")
-      ask <- c(ask, sprintf("n is small (~%g per group). Points + mean +/- SD (recommended) or violin/box to match other figures?", m))
+    if (m >= 3) {
+      add(paste0("Violin + box + points (raincloud for >= 10 per group)", if (two) ", dodged or faceted by the 2nd factor" else ""),
+          sprintf("raw replicates, ~%g per group: show every observation", m), "recipes.md#violin-box-points")
+      add(paste0("Points + mean +/- SD", if (two) " (dodged by 2nd factor)" else ""),
+          if (m < 6) sprintf("alternative for very small n (~%g per group), where density shapes are weak", m) else "alternative when the distribution shape is not of interest",
+          "recipes.md#points-mean-error")
     } else if (m >= 1) {
-      add("Bar or dot chart (no error bars)", "one value per group", "recipes.md#bars")
+      add("Dot or bar chart (no error bars)", "one or two values per group", "recipes.md#bars")
     }
-    if (!length(pcols) && m >= 2) ask <- c(ask, "No statistics found. Run a group comparison (compare_groups(): ANOVA/Tukey, Welch/Games-Howell or Kruskal/Dunn) and show letters, or plot without inferential marks?")
+    if (!length(pcols) && m >= 2) ask <- c(ask, "No statistics found. Run a group comparison (ANOVA/Tukey, Welch/Games-Howell or Kruskal/Dunn via compare_groups()) and show adjusted p-value brackets for significant pairs, or plot without inferential marks?")
   } else if (length(cont_cols) >= 4 && !length(g_cols)) {
     add("Correlation heatmap", sprintf("%d numeric variables, no grouping", length(cont_cols)), "recipes.md#correlation-heatmap")
   } else if (length(cont_cols) >= 4 && length(g_cols)) {

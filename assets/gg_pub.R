@@ -34,6 +34,10 @@ suppressPackageStartupMessages({
   library(scales)
 })
 
+if (utils::packageVersion("ggplot2") < "3.5.0") {
+  stop("gg-figs needs ggplot2 >= 3.5.0 (found ", as.character(utils::packageVersion("ggplot2")), ").", call. = FALSE)
+}
+
 if (.Platform$OS.type == "windows") {
   try(Sys.setlocale("LC_ALL", "English_United States.utf8"), silent = TRUE)
 }
@@ -77,8 +81,12 @@ pub_font(getOption("ggpub.font.request", "Times New Roman"))
 
 # base_size is the font size in points AT FINAL PRINT SIZE. Save with save_pub()
 # at the real column width and keep base_size 7-9 so the printed text is 6-9 pt.
+# A complete ggplot2 theme: every theme() element can still be overridden, either
+# through `...` here (theme_pub(legend.key.width = unit(1, "cm"))) or with a
+# following `+ theme(...)`. legend accepts any legend.position value, including
+# "inside" (then also set theme(legend.position.inside = c(x, y))).
 theme_pub <- function(base_size = 8, base_family = pub_family(),
-                      grid = c("y", "none", "x", "xy"), legend = "top", border = FALSE) {
+                      grid = c("y", "none", "x", "xy"), legend = "top", border = FALSE, ...) {
   grid <- match.arg(grid)
   lw <- base_size / 20
   out <- theme_classic(base_size = base_size, base_family = base_family) +
@@ -116,6 +124,7 @@ theme_pub <- function(base_size = 8, base_family = pub_family(),
       axis.line = element_blank()
     )
   }
+  if (...length() > 0) out <- out + theme(...)
   out
 }
 
@@ -423,6 +432,205 @@ layers_points_mean <- function(error = "sd", dodge = NULL, point_size = 1.3, poi
 }
 
 # ---------------------------------------------------------------------------
+# Direct labels: spread label heights so neighbours do not overlap
+# ---------------------------------------------------------------------------
+
+# Moves label heights apart (keeping their order) until neighbours are at least `gap` apart,
+# in data units. Use for labels at the end of lines instead of a legend:
+#   ends %>% mutate(y_lab = spread_labels(mean, gap = 7)) and geom_text(aes(y = y_lab), hjust = 0)
+spread_labels <- function(y, gap, iter = 500) {
+  o <- order(y)
+  z <- y[o]
+  for (k in seq_len(iter)) {
+    d <- diff(z)
+    bad <- which(d < gap - 1e-9)
+    if (length(bad) == 0) break
+    for (i in bad) {
+      s <- (gap - d[i]) / 2
+      z[i] <- z[i] - s
+      z[i + 1] <- z[i + 1] + s
+    }
+  }
+  out <- y
+  out[o] <- z
+  out
+}
+
+# ---------------------------------------------------------------------------
+# Scales that plug into any geom: scale_{colour,color,fill,shape,linetype}_pub(),
+# plus sequential / diverging continuous scales
+# ---------------------------------------------------------------------------
+
+# Discrete scales that recycle the house palette in the order of the factor levels.
+# They take every argument of discrete_scale() (name, breaks, labels, limits, guide, ...).
+scale_colour_pub <- function(..., palette = pub_colors, aesthetics = "colour") {
+  discrete_scale(aesthetics, palette = function(n) rep_len(palette, n), ...)
+}
+scale_color_pub <- scale_colour_pub
+scale_fill_pub <- function(..., palette = pub_colors) scale_colour_pub(..., palette = palette, aesthetics = "fill")
+scale_shape_pub <- function(..., palette = pub_shape_set) {
+  discrete_scale("shape", palette = function(n) rep_len(palette, n), ...)
+}
+scale_linetype_pub <- function(..., palette = pub_linetype_set) {
+  discrete_scale("linetype", palette = function(n) rep_len(palette, n), ...)
+}
+
+# Continuous scales: sequential (low -> high) and diverging (blue - white - red).
+# All gradient arguments (limits, breaks, labels, oob, guide, ...) pass through.
+scale_fill_pub_seq <- function(..., low = "#EAF2FA", high = "#08306B") scale_fill_gradient(..., low = low, high = high)
+scale_colour_pub_seq <- function(..., low = "#C6DBEF", high = "#08306B") scale_colour_gradient(..., low = low, high = high)
+scale_color_pub_seq <- scale_colour_pub_seq
+scale_fill_pub_div <- function(..., low = "#2166AC", mid = "white", high = "#B2182B", midpoint = 0) {
+  scale_fill_gradient2(..., low = low, mid = mid, high = high, midpoint = midpoint)
+}
+scale_colour_pub_div <- function(..., low = "#2166AC", mid = "white", high = "#B2182B", midpoint = 0) {
+  scale_colour_gradient2(..., low = low, mid = mid, high = high, midpoint = midpoint)
+}
+scale_color_pub_div <- scale_colour_pub_div
+
+# ---------------------------------------------------------------------------
+# geom_half_violin(): one side of a violin, for raincloud plots
+# ---------------------------------------------------------------------------
+
+GeomHalfViolin <- ggproto("GeomHalfViolin", GeomViolin,
+  draw_group = function(self, data, panel_params, coord, ..., side = "r", nudge = 0,
+                        quantile_gp = NULL, flipped_aes = FALSE) {
+    sgn <- if (identical(side, "l")) -1 else 1
+    data$x <- data$x + nudge
+    data$xedge <- data$x + sgn * data$violinwidth * (data$xmax - data$xmin) / 2
+    ord <- order(data$y)
+    inner <- data[ord, ]
+    outer <- data[rev(ord), ]
+    outer$x <- outer$xedge
+    outline <- rbind(inner, outer)
+    outline <- rbind(outline, outline[1, ])
+    GeomPolygon$draw_panel(outline, panel_params, coord)
+  }
+)
+
+# One half of a violin. Use position = "identity" and nudge = 0.1 (or more) to float it
+# beside the box; side = "l" mirrors it. Takes the stat arguments of geom_violin()
+# (trim, scale, adjust, bw, ...).
+geom_half_violin <- function(mapping = NULL, data = NULL, position = "identity", ...,
+                             trim = TRUE, scale = "width", side = "r", nudge = 0,
+                             na.rm = FALSE, orientation = NA, show.legend = NA, inherit.aes = TRUE) {
+  layer(data = data, mapping = mapping, stat = "ydensity", geom = GeomHalfViolin,
+        position = position, show.legend = show.legend, inherit.aes = inherit.aes,
+        params = list(trim = trim, scale = scale, side = side, nudge = nudge,
+                      na.rm = na.rm, orientation = orientation, ...))
+}
+
+# Raincloud: half violin + narrow box + raw points. Map fill and color to the group.
+layers_raincloud <- function(violin_nudge = 0.1, box_width = 0.12, point_size = 1.1,
+                             point_alpha = 0.75, jitter = 0.05, seed = 1) {
+  list(
+    geom_half_violin(side = "r", nudge = violin_nudge, alpha = 0.3, linewidth = 0.3, width = 0.8),
+    geom_boxplot(width = box_width, outlier.shape = NA, alpha = 0.85, linewidth = 0.35, staplewidth = 0,
+                 position = position_nudge(x = 0.02)),
+    geom_point(position = position_jitter(width = jitter, height = 0, seed = seed), size = point_size,
+               alpha = point_alpha, show.legend = FALSE)
+  )
+}
+
+# ---------------------------------------------------------------------------
+# Significance brackets from a pairwise table
+# ---------------------------------------------------------------------------
+
+# One bracket per significant pair, stacked without overlap (shorter spans lower), ready
+# for geom_brackets(). Nothing is drawn when the omnibus test is not significant (if
+# omnibus_p is supplied) or no adjusted pairwise p is below alpha. For discrete x axes;
+# `facet` names column(s) present in both data and pairwise to get one stack per panel.
+#   pairwise: tibble with group1, group2, p.adj (e.g. compare_groups()$pairwise)
+#   label:    "p" (exact: "p = 0.012"), "p.adj" ("p(adj) = 0.012"), "stars", or "both"
+#   vs:       keep only comparisons against this group (e.g. vs = "Control")
+# Heights are in data units: start/step/tip are fractions of the y range of the panel.
+pairwise_brackets <- function(pairwise, data, x, y, facet = NULL, omnibus_p = NULL, alpha = 0.05,
+                              label = c("p", "p.adj", "stars", "both"), start = 0.06, step = 0.13,
+                              tip = 0.02, p_col = "p.adj", digits = 3, vs = NULL) {
+  label <- match.arg(label)
+  empty <- tibble::tibble(xmin = character(), xmax = character(), xmin_n = numeric(), xmax_n = numeric(),
+                          annotations = character(), y_position = numeric(), tip = numeric())
+  if (!is.null(omnibus_p) && !is.na(omnibus_p) && omnibus_p >= alpha) return(empty)
+  pw <- pairwise[!is.na(pairwise[[p_col]]) & pairwise[[p_col]] < alpha, , drop = FALSE]
+  if (!is.null(vs)) pw <- pw[as.character(pw$group1) == vs | as.character(pw$group2) == vs, , drop = FALSE]
+  if (nrow(pw) == 0) return(empty)
+  lv <- .pub_levels(data[[x]])
+  pw$xmin <- as.character(pw$group1)
+  pw$xmax <- as.character(pw$group2)
+  swap <- match(pw$xmin, lv) > match(pw$xmax, lv)
+  tmp <- pw$xmin
+  pw$xmin[swap] <- pw$xmax[swap]
+  pw$xmax[swap] <- tmp[swap]
+  pw$xmin_n <- match(pw$xmin, lv)
+  pw$xmax_n <- match(pw$xmax, lv)
+  pw$span <- pw$xmax_n - pw$xmin_n
+  pw$annotations <- switch(label,
+    p = format_p(pw[[p_col]], digits),
+    p.adj = format_p(pw[[p_col]], digits, prefix = "p(adj)"),
+    stars = p_stars(pw[[p_col]]),
+    both = paste0(p_stars(pw[[p_col]]), "\n", format_p(pw[[p_col]], digits))
+  )
+  facet <- as.character(facet)
+  place <- function(pw_f, d_f) {
+    rng <- diff(range(d_f[[y]], na.rm = TRUE))
+    if (!is.finite(rng) || rng == 0) rng <- max(abs(d_f[[y]]), 1, na.rm = TRUE)
+    top <- max(d_f[[y]], na.rm = TRUE)
+    pw_f <- pw_f[order(pw_f$span, pw_f$xmin_n), , drop = FALSE]
+    pw_f$y_position <- top + rng * (start + step * (seq_len(nrow(pw_f)) - 1))
+    pw_f$tip <- rng * tip
+    pw_f
+  }
+  if (length(facet) == 0) {
+    out <- place(pw, data)
+  } else {
+    keys <- unique(pw[facet])
+    out <- do.call(rbind, lapply(seq_len(nrow(keys)), function(i) {
+      key <- keys[i, , drop = FALSE]
+      pick <- function(df) Reduce(`&`, lapply(facet, function(f) as.character(df[[f]]) == as.character(key[[f]])))
+      place(pw[pick(pw), , drop = FALSE], data[pick(data), , drop = FALSE])
+    }))
+  }
+  keep <- c(facet, "xmin", "xmax", "xmin_n", "xmax_n", "annotations", "y_position", "tip")
+  tibble::as_tibble(out[, intersect(keep, names(out))])
+}
+
+# Draws the brackets from pairwise_brackets() with plain geom_segment()/geom_text() layers (no
+# extra package) and adds an invisible layer so the y axis makes room for them, also per facet
+# with free scales. Returns NULL when there is nothing to draw, so `p + geom_brackets(b)` is
+# always safe.
+geom_brackets <- function(brackets, text_size = 2.6, linewidth = 0.3) {
+  if (is.null(brackets) || nrow(brackets) == 0) return(NULL)
+  core <- c("xmin", "xmax", "xmin_n", "xmax_n", "annotations", "y_position", "tip")
+  facet_cols <- setdiff(names(brackets), core)
+  mk <- function(x, xend, y, yend) {
+    out <- brackets[facet_cols]
+    out$x <- x
+    out$xend <- xend
+    out$y <- y
+    out$yend <- yend
+    out
+  }
+  segs <- rbind(
+    mk(brackets$xmin_n, brackets$xmax_n, brackets$y_position, brackets$y_position),
+    mk(brackets$xmin_n, brackets$xmin_n, brackets$y_position - brackets$tip, brackets$y_position),
+    mk(brackets$xmax_n, brackets$xmax_n, brackets$y_position - brackets$tip, brackets$y_position)
+  )
+  labels <- brackets
+  labels$x_mid <- (brackets$xmin_n + brackets$xmax_n) / 2
+  tops <- brackets
+  tops$y_top <- brackets$y_position + 5 * brackets$tip
+  tops <- tops[c(facet_cols, "y_top")]
+  tops <- unique(tops[order(tops$y_top, decreasing = TRUE), ])
+  list(
+    geom_segment(data = segs, aes(x = x, xend = xend, y = y, yend = yend), inherit.aes = FALSE,
+                 linewidth = linewidth, lineend = "square", color = "black"),
+    geom_text(data = labels, aes(x = x_mid, y = y_position, label = annotations), inherit.aes = FALSE,
+              vjust = -0.45, size = text_size, family = pub_family(), color = "black", lineheight = 0.9),
+    geom_blank(data = tops, aes(y = y_top), inherit.aes = FALSE)
+  )
+}
+
+# ---------------------------------------------------------------------------
 # Saving
 # ---------------------------------------------------------------------------
 
@@ -442,9 +650,10 @@ pub_journals <- list(
 
 # width: "single", "onehalf", "double" or a number in mm. height in mm
 # (default width * aspect). Writes <dir>/<format>/<stem>.<ext> and returns the paths.
+# Extra arguments in `...` go to ggsave() (e.g. scale, limitsize).
 save_pub <- function(plot, stem, width = "double", height = NULL, journal = "default",
                      dir = "figures", formats = c("pdf", "tiff", "png"), dpi = 600,
-                     aspect = 0.62, bg = "white", subdirs = TRUE) {
+                     aspect = 0.62, bg = "white", subdirs = TRUE, ...) {
   spec <- pub_journals[[tolower(journal)]]
   if (is.null(spec)) stop("Unknown journal '", journal, "'. Known: ", paste(names(pub_journals), collapse = ", "), call. = FALSE)
   width_mm <- if (is.numeric(width)) width else spec[[width]]
@@ -475,7 +684,7 @@ save_pub <- function(plot, stem, width = "double", height = NULL, journal = "def
     } else {
       stop("Unsupported format: ", fmt, call. = FALSE)
     }
-    do.call(ggsave, args)
+    do.call(ggsave, c(args, list(...)))
     paths <- c(paths, path)
   }
   message(sprintf("Saved %s (%.0f x %.0f mm): %s", stem, width_mm, height_mm, paste(basename(paths), collapse = ", ")))

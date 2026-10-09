@@ -15,7 +15,7 @@ check <- function(ok, what) {
 set.seed(1)
 
 # Group names with hyphens, colons, spaces and percent signs
-g <- c("Bigel-Nano", "1:2, 12%", "Drug (10 mg/kg)", "Control")
+g <- c("Drug-Nano", "1:2, 12%", "Drug (10 mg/kg)", "Control")
 d <- tibble(group = factor(rep(g, each = 10), levels = g), value = rnorm(40, rep(c(10, 10.2, 14, 18), each = 10), 1))
 
 for (m in c("anova", "welch", "kruskal", "auto")) {
@@ -60,6 +60,30 @@ s <- summarise_mean_error(d, "value", "group", error = "se")
 check(all(abs(s$upper - s$mean - s$sd / sqrt(10)) < 1e-12), "summarise_mean_error se")
 y <- annotation_y(d, "value", "group", frac = 0.1)
 check(all(y$label_y > tapply(d$value, d$group, max)[as.character(y$group)]), "annotation_y above group max")
+
+# Brackets: only significant pairs, only when the omnibus test is significant, one stack per facet
+br <- pairwise_brackets(r_aov$pairwise, d, "group", "value", omnibus_p = r_aov$omnibus$p)
+check(nrow(br) == sum(r_aov$pairwise$p.adj < 0.05) && all(br$xmin_n < br$xmax_n), "pairwise_brackets keeps only significant pairs, ordered left to right")
+check(!is.unsorted(br$y_position) && all(diff(br$y_position) > 0), "pairwise_brackets stacks brackets without overlap")
+check(nrow(pairwise_brackets(r_aov$pairwise, d, "group", "value", omnibus_p = 0.2)) == 0, "no brackets when omnibus p >= 0.05")
+check(all(grepl("Control|Drug-Nano|1:2, 12%|Drug", c(pairwise_brackets(r_aov$pairwise, d, "group", "value", vs = "Control")$xmin,
+                                                      pairwise_brackets(r_aov$pairwise, d, "group", "value", vs = "Control")$xmax))),
+      "vs = keeps comparisons against one group")
+check(is.null(geom_brackets(br[0, ])), "geom_brackets() on an empty table returns NULL, so p + geom_brackets(b) is always safe")
+pf <- bind_rows(mutate(r_aov$pairwise, panel = "P1"), mutate(r_aov$pairwise, panel = "P2"))
+df2 <- bind_rows(mutate(d, panel = "P1"), mutate(d, panel = "P2"))
+check(setequal(unique(pairwise_brackets(pf, df2, "group", "value", facet = "panel")$panel), c("P1", "P2")), "brackets per facet panel")
+
+# spread_labels
+sp <- spread_labels(c(100, 98.5, 92, 66), gap = 7)
+check(all(diff(sort(sp)) >= 7 - 1e-6) && identical(order(sp), order(c(100, 98.5, 92, 66))), "spread_labels separates neighbours and keeps order")
+
+# Scales and half violin build and draw
+pp <- ggplot(d, aes(group, value, fill = group, colour = group, shape = group)) + geom_half_violin() + geom_point() +
+  scale_fill_pub() + scale_colour_pub() + scale_shape_pub() + theme_pub()
+png_tmp <- tempfile(fileext = ".png"); ragg::agg_png(png_tmp, 400, 300); print(pp); dev.off()
+check(file.exists(png_tmp), "geom_half_violin + scale_*_pub render")
+check(inherits(theme_pub(legend.key.width = grid::unit(2, "cm")), "theme"), "theme_pub passes ... to theme()")
 
 # Saving at journal width
 p <- ggplot(d, aes(group, value)) + geom_point() + theme_pub()

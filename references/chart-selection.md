@@ -32,7 +32,7 @@ alternative in one sentence.
 | One value per group | bars or dots, no error bars, no inferential statistics |
 | A subject/animal ID repeated across conditions | paired / repeated-measures design: connect each subject |
 | Replicate index (rep 1..n) restarting in each group | independent replicates, not pairing |
-| A label like "CAM 0.5%" or "1:2, 12%" | two crossed factors in one column: `separate()` |
+| A label like "Drug 5 mg" or "1:2, 12%" | two crossed factors in one column: `separate()` |
 | Columns with p, padj, letters | statistics already computed: use them, do not recompute |
 | endpoint / parameter / analyte column | facets (`facet_wrap(scales = "free_y")`) |
 
@@ -40,13 +40,13 @@ alternative in one sentence.
 
 | n per group | Default | Notes |
 |---|---|---|
-| >= 10 | violin + box + points | distribution shape is interpretable |
-| 3-9 | points + mean +/- SD | violins of 3-6 points are mostly kernel artefact; box + points is the alternative |
+| >= 10 | raincloud or violin + box + points | distribution shape is interpretable |
+| 3-9 | violin + box + points (`trim = TRUE`, so it never extends beyond the data) | with n < 6 the violin shape is weak; points + mean +/- SD is the alternative, mention it once |
 | 1-2 | dots or bars, no error bars | say "single measurement" in the caption |
-| summary only | mean +/- SD points | state SD vs SE |
+| summary only | mean +/- SD points | state SD vs SE; raw values are needed for violin/box |
 
-House style beats this table: if the manuscript's other figures already use violins for small n,
-match them and mention the trade-off once.
+Show every observation whenever raw data exist. Significance: adjusted p-value **brackets** for significant pairs
+(after a significant omnibus test); letters only on request.
 
 Layout: one factor -> x = group, color = group (legend off). Two factors -> x = the factor with
 more levels or the natural order (dose, time), color/dodge = the other; or facet by one when
@@ -56,7 +56,7 @@ dodging would put > 4 boxes per x position. More than ~8 groups on one axis -> f
 
 | Situation | Chart |
 |---|---|
-| Replicates at each x | mean +/- SD line (error bars), optionally faint individual traces |
+| Replicates at each x | mean +/- SD line (error bars or ribbon), optionally faint individual traces; start at the baseline (t = 0), never bars/violins over time |
 | One measurement per x, many x values | line only (curve) |
 | One measurement per x, few x values (calibration standards) | points + fitted model |
 | x spans orders of magnitude (frequency, shear rate, dose, concentration) | log axis (`scale_x_log10`), log ticks |

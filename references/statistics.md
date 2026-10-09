@@ -23,7 +23,7 @@ homogeneity (Fligner-Killeen) and picks ANOVA/Tukey, Welch/Games-Howell or Krusk
 diagnostics have almost no power; say so, or let the user choose `method =` explicitly. Its Tukey, Dunn and
 Games-Howell p-values are tested against `TukeyHSD()` and `rstatix` in `examples/test_helpers.R`.
 
-Two crossed factors (e.g. terpene x concentration): two-way ANOVA `aov(value ~ A * B)`; if the interaction is
+Two crossed factors (e.g. drug x dose): two-way ANOVA `aov(value ~ A * B)`; if the interaction is
 significant compare cells (one-way on the combined factor, Tukey), otherwise main effects. With `emmeans`:
 `emmeans(fit, pairwise ~ A | B, adjust = "tukey")`.
 
@@ -35,12 +35,17 @@ Multiple endpoints in one figure: test each endpoint separately; mention whether
 
 ## Annotation formats
 
+Default: **adjusted p-value brackets for significant pairs only, drawn only when the omnibus test is significant**
+(`compare_groups()` -> `pairwise_brackets()` -> `geom_brackets()`; `vs = "Control"` keeps comparisons against one group).
+Compact letters are available (`cld_letters()`) but only used when the user asks for them.
+
 | Situation | Show |
 |---|---|
-| All pairwise comparisons, adjusted | compact letters (`cld_letters()`); "groups sharing a letter do not differ (Tukey HSD, p < 0.05)" |
-| A few planned comparisons (vs control) | brackets with p(adj) or stars (`ggsignif::geom_signif`) |
-| Omnibus significant, no adjusted pair significant | "Overall p = 0.043; pairwise ns" in subtitle/strip, no letters |
-| Nothing significant | omnibus p in caption or subtitle; no letters |
+| Omnibus significant and some adjusted pairs significant | brackets for those pairs with exact p(adj) (or stars); post-hoc method in the caption |
+| Treatment vs control only | `pairwise_brackets(..., vs = "Control")` |
+| Letters requested | `cld_letters()`; "groups sharing a letter do not differ (Tukey HSD, p < 0.05)" |
+| Omnibus significant, no adjusted pair significant | no brackets; "Overall p = 0.043; pairwise ns" in the caption or facet strip |
+| Nothing significant | omnibus p in the caption; no marks |
 | Regression / calibration | equation and R^2 on the plot or in the caption |
 | Survival | log-rank p on the plot; HR (95% CI) in caption if a Cox model was fitted |
 
