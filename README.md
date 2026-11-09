@@ -1,11 +1,8 @@
 # gg-figs
 
-A [Claude](https://claude.com) Agent Skill for **publication-quality scientific figures in R with ggplot2**.
+An Agent Skill for **publication-quality scientific figures in R with ggplot2**, compatible with **Google Gemini / Antigravity**, **OpenAI Codex**, and **Anthropic Claude**.
 
-Give Claude a data file (CSV, TSV, Excel) and ask for a figure. The skill inspects the data, chooses an
-appropriate chart, adds only the statistics the analysis supports, and exports journal-ready files. It asks a
-question only when two choices are equally defensible, for example violins vs. points for four observations per
-group. All example figures in this repository are drawn from **simulated data**.
+Give your AI agent a data file (CSV, TSV, Excel) and ask for a figure. The skill inspects the data, chooses an appropriate chart, adds only the statistics the analysis supports, and exports journal-ready files. It asks a question only when two choices are equally defensible, for example violins vs. points for four observations per group. All example figures in this repository are drawn from **simulated data**.
 
 ![Multi-panel plate](examples/gallery/24_multipanel_plate.png)
 
@@ -13,7 +10,7 @@ group. All example figures in this repository are drawn from **simulated data**.
 
 - **Reads the data first.** `scripts/inspect_data.R` detects column roles, replicates per group, wide vs. long
   layout, facet variables, labels that encode two factors (e.g. `"Drug 5 mg"`), paired designs, summary-only tables
-  and existing p-value columns, then ranks chart suggestions and lists the open questions.
+  and existing p-value columns, then ranks chart suggestions and lists open questions.
 - **Chooses the chart from the data.** 24 examples: raincloud and violin + box + points, points + mean ± SD,
   stacked proportions, paired lines, release/time courses, pharmacokinetics (semi-log), dose-response with 4PL
   fits, calibration with confidence and prediction bands, Bland–Altman, ROC, Kaplan–Meier with risk table, volcano,
@@ -37,17 +34,63 @@ group. All example figures in this repository are drawn from **simulated data**.
 
 ## Install
 
-**Claude Code (all projects):**
+### 1. Google Gemini & Antigravity
+
+**All projects (global):**
 
 ```bash
-git clone https://github.com/erfanz97/gg-figs.git ~/.claude/skills/gg-figs
+# Linux / macOS
+git clone https://github.com/erfanz97/gg-figs.git ~/.gemini/config/skills/gg-figs
+
+# Windows (PowerShell)
+git clone https://github.com/erfanz97/gg-figs.git "$env:USERPROFILE\.gemini\config\skills\gg-figs"
 ```
 
-**Claude Code (one project):** clone into `<project>/.claude/skills/gg-figs`.
+**Single project (workspace):**
+
+```bash
+git clone https://github.com/erfanz97/gg-figs.git <project>/.agents/skills/gg-figs
+```
+
+### 2. OpenAI Codex
+
+**All projects (global):**
+
+```bash
+# Linux / macOS
+git clone https://github.com/erfanz97/gg-figs.git ~/.codex/skills/gg-figs
+
+# Windows (PowerShell)
+git clone https://github.com/erfanz97/gg-figs.git "$env:USERPROFILE\.codex\skills\gg-figs"
+```
+
+**Single project (workspace):**
+
+```bash
+git clone https://github.com/erfanz97/gg-figs.git <project>/.codex/skills/gg-figs
+```
+
+### 3. Anthropic Claude Code
+
+**All projects (global):**
+
+```bash
+# Linux / macOS
+git clone https://github.com/erfanz97/gg-figs.git ~/.claude/skills/gg-figs
+
+# Windows (PowerShell)
+git clone https://github.com/erfanz97/gg-figs.git "$env:USERPROFILE\.claude\skills\gg-figs"
+```
+
+**Single project (workspace):**
+
+```bash
+git clone https://github.com/erfanz97/gg-figs.git <project>/.claude/skills/gg-figs
+```
 
 **Claude.ai / Claude Desktop:** download the repository as a ZIP and upload it under *Settings → Capabilities → Skills*.
 
-**R packages:**
+### R packages
 
 ```r
 install.packages(c("ggplot2", "dplyr", "tidyr", "readr", "patchwork", "ragg", "scales", "systemfonts",
@@ -59,13 +102,13 @@ ggplot2 4.0.1 (ggplot2 ≥ 3.5.0 is required).
 
 ## Use
 
-Ask in plain language:
+Ask your AI agent in plain language:
 
 - "Make a figure for my paper from `data/ee_raw.csv`."
 - "Plot the release profiles in `release.xlsx` in the same style as my other figures."
 - "Compare the four groups in this table and show significant differences."
 
-Claude runs the inspector, states the chart it picked and why (or asks a short question when the data are
+The agent runs the data inspector, states the chart it picked and why (or asks a short question when the data are
 ambiguous), writes an R script in your project, renders the figure, checks it visually, and reports the files and a
 draft caption. You can try the inspector yourself:
 
@@ -73,7 +116,7 @@ draft caption. You can try the inspector yourself:
 Rscript scripts/inspect_data.R examples/data/raincloud_raw.csv
 ```
 
-The helper library also works on its own, without Claude:
+The helper library also works on its own, without an AI assistant:
 
 ```r
 source("R/gg_pub.R")                                      # copied from assets/gg_pub.R
@@ -90,7 +133,10 @@ save_pub(p, "Figure_01", width = "single", journal = "elsevier")
 
 | Path | Purpose |
 |---|---|
-| `SKILL.md` | Instructions Claude follows (workflow, decision rules, style, pitfalls) |
+| `SKILL.md` | Core Agent Skill instructions (compatible with Gemini, Codex, and Claude) |
+| `GEMINI.md` | Project rules and guidance for Google Gemini & Antigravity IDE / CLI |
+| `AGENTS.md` | Universal agent instructions for OpenAI Codex, Copilot, and Cursor |
+| `CLAUDE.md` | Context and guidelines for Anthropic Claude Code |
 | `assets/gg_pub.R` | Helper library: theme, palettes, scales, statistics, brackets, raincloud, direct labels, `save_pub` |
 | `assets/figure_template.R` | Skeleton for a project figure script |
 | `scripts/inspect_data.R` | Data profiler and chart recommender |

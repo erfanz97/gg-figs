@@ -1,6 +1,6 @@
 ---
 name: gg-figs
-description: Publication-quality scientific figures in R/ggplot2 for articles, theses and revisions. Given a data file (CSV/Excel) or a figure request, it inspects the data, picks the chart itself (raincloud/violin + box + points, mean ± SD, time courses, PK, dose-response, calibration, Bland-Altman, ROC, Kaplan-Meier, volcano, forest, heatmaps, PCA, ridgelines, response surfaces, rheology, XRD/FTIR/DSC/TGA, multi-panel plates) and asks only when the choice is genuinely ambiguous. Adds only supported statistics (ANOVA/Tukey, Welch/Games-Howell, Kruskal/Dunn) as adjusted p-value brackets, uses colorblind-safe palettes, exports vector PDF + 600-dpi TIFF/PNG at journal widths. Works with every ggplot2 geom, stat, scale, coord, facet, guide and theme. Use whenever the user wants to plot, chart, visualize or restyle data for a paper, manuscript, thesis or reviewer response in R, even without saying "ggplot2", for example "make a figure from this csv" or "same style as my other figures".
+description: Publication-quality scientific figures in R/ggplot2 for articles, theses and revisions across Google Gemini, OpenAI Codex, and Anthropic Claude. Given a data file (CSV/Excel) or a figure request, it inspects the data, picks the chart itself (raincloud/violin + box + points, mean ± SD, time courses, PK, dose-response, calibration, Bland-Altman, ROC, Kaplan-Meier, volcano, forest, heatmaps, PCA, ridgelines, response surfaces, rheology, XRD/FTIR/DSC/TGA, multi-panel plates) and asks only when the choice is genuinely ambiguous. Adds only supported statistics (ANOVA/Tukey, Welch/Games-Howell, Kruskal/Dunn) as adjusted p-value brackets, uses colorblind-safe palettes, exports vector PDF + 600-dpi TIFF/PNG at journal widths. Works with every ggplot2 geom, stat, scale, coord, facet, guide and theme. Use whenever the user wants to plot, chart, visualize or restyle data for a paper, manuscript, thesis or reviewer response in R, even without saying "ggplot2", for example "make a figure from this csv" or "same style as my other figures".
 ---
 
 # gg-figs: publication figures with ggplot2
@@ -32,8 +32,14 @@ scale, coord, facet, guide or `theme()` call to the skill's plots (see `referenc
 ## Workflow
 
 ### 1. Find the context
-- Locate R: `Rscript` on PATH, otherwise on Windows `C:/Program Files/R/R-*/bin/Rscript.exe`. Check the packages
-  listed at the top of `gg_pub.R`; if any are missing, give the user the `install.packages()` line.
+- Locate R:
+  - Linux/macOS: `Rscript` on PATH.
+  - Windows: `Get-Command Rscript` on PATH, or search `C:/Program Files/R/R-*/bin/Rscript.exe`.
+  - Agent runtime tool execution:
+    - **Google Gemini / Antigravity**: Run commands via `run_command` (PowerShell on Windows, Bash on Linux/macOS).
+    - **OpenAI Codex**: Run commands via the execution sandbox shell.
+    - **Anthropic Claude Code**: Run commands via the `Bash` tool.
+- Check the packages listed at the top of `gg_pub.R`; if any are missing, give the user the `install.packages()` line.
 - Look for existing figure scripts in the project (`ggsave`, `theme_`, `scale_color_manual`). If the manuscript
   already has figures, **match them** (palette, font, sizes, file names, group order); consistency within one
   paper matters more than any default here. Reuse their palettes and level orders.
@@ -85,7 +91,12 @@ print width with `base_size` 7-9 so text prints at 6-9 pt. Default journal prese
 journal if known (`references/journal-specs.md`).
 
 ### 5. Look at the result before reporting
-Render, then open the PNG (the Read tool shows images) and check:
+Render, then view the exported PNG using your agent environment's image inspection capabilities:
+- **Google Gemini / Antigravity**: Use `read_file` on the generated PNG path (which renders inline in the conversation context).
+- **Anthropic Claude Code**: Use the `Read` tool or `view_image` to inspect the PNG.
+- **OpenAI Codex**: Inspect via the native image inspection tool or verify image file dimensions and attributes.
+
+Check:
 - nothing clipped or overlapping (labels, brackets, legend, strips, long group names);
 - brackets sit above the data and match the test output;
 - legend order matches the data order; colors identical to the other figures;
@@ -96,9 +107,12 @@ Fix and re-render until clean. Never report a figure you have not looked at.
 
 ### 6. Report and get approval
 Give the file paths, the chart and statistics chosen (one line each) and a draft caption (what each element is,
-error-bar type, n, test; template in `references/statistics.md`). When the user is reviewing figures one by one
-(revisions, theses), send each new or redrawn figure (`SendUserFile` if available, otherwise the path) and wait for
-approval before inserting it anywhere or writing dependent text. Update the project's figure manifest if it has one.
+error-bar type, n, test; template in `references/statistics.md`).
+- **Google Gemini / Antigravity**: Provide clickable markdown file links (`[Figure_01.png](file:///...)`) and present artifacts or embedded previews.
+- **Anthropic Claude Code**: Send each new or redrawn figure (`SendUserFile` if available, otherwise the path).
+- **OpenAI Codex**: Provide clear file paths and formatted markdown summary with the caption.
+
+When the user is reviewing figures one by one (revisions, theses), send/link each figure and wait for approval before inserting it anywhere or writing dependent text. Update the project's figure manifest if it has one.
 
 ## Style defaults (and why)
 - `theme_pub()`: classic axes, bold axis titles, faint horizontal grid, legend on top, Times New Roman via
